@@ -8,7 +8,11 @@
     "build": "cross-env NODE_ENV=production webpack  --config ./config/webpack.prod.config.js",
     "start": " cross-env NODE_ENV=development webpack-dev-server --inline --config ./config/webpack.dev.config.js"
   },
-  "keywords": [],
+  "keywords": [
+    "webpack",
+    "react",
+    "配置"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
