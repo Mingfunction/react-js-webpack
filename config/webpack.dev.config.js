@@ -1,28 +1,24 @@
 const merge = require("webpack-merge");
 const common = require("./webpack.common.config");
 const path = require("path");
-
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const apiMocker = require("mocker-api");
-
 module.exports = merge(common, {
   // 生产环境 可选production（默认）/ development / none
   mode: "development",
   output: {
     filename: "js/[name].[hash:4].bundle.js",
+    publicPath: "/", //
   },
   devServer: {
-    before(mock) {
-      apiMocker(mock, path.resolve(__dirname, "../mock/index"));
-    },
-    // mock数据配置
     contentBase: path.resolve(__dirname, "../public"),
     // 是否自动打开一个新窗口
     open: true,
     // 端口
     port: 8080,
+    historyApiFallback: true,
+    // 单页面应用且是浏览器路由时,页面不丢失
     compress: true,
     // 设置devServer.hot为true，并且在plugins中引入HotModuleReplacementPlugin插件即可。
     // 还需要注意的是我们开启了hot，那么导出不能使用chunkhash，需要替换为hash。
@@ -30,27 +26,41 @@ module.exports = merge(common, {
     hot: true,
     // 启用热模块替换，而不会在构建失败时将页面刷新作为后备。
     // hotOnly: true
-    proxy: {
-      "/mock": {
-        target: "http://127.0.0.1:8080",
-        changeOrigin: true,
-        pathRewrite: {
-          "^/mock": "",
-        },
-      },
-    },
   },
   module: {
     rules: [
       {
-        test: /\.css$/,
+        test: /\.module\.css$/,
         use: [
+          // css 热更新
+          "css-hot-loader",
           // link的方式引入
           MiniCssExtractPlugin.loader,
-          "css-loader",
+          {
+            loader: "css-loader",
+            options: {
+              modules: { localIdentName: "[local]_[name]_[hash:base64:5]" },
+              importLoaders: 1,
+            },
+          },
           // 增加浏览器的前缀 有postcss.congfig.js文件
           "postcss-loader",
         ],
+        // node_modules 除外
+        exclude: [path.resolve(__dirname, "../node_modules")],
+      },
+      {
+        // 上面是nodemodules,不模块化
+        // 其他的模块化处理，那这里的就需要再处理一次
+        test: /\.css$/,
+        exclude: /\.module\.css$/,
+        use: [
+          "css-hot-loader",
+          MiniCssExtractPlugin.loader,
+          { loader: "css-loader" },
+          "postcss-loader",
+        ],
+        include: [path.resolve(__dirname, "../node_modules")],
       },
       {
         test: /\.less$/,
@@ -62,8 +72,35 @@ module.exports = merge(common, {
         ],
       },
       {
-        test: /\.(sass|scss)/,
+        test: /\.module\.(scss|sass)$/,
         use: [
+          "css-hot-loader",
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              publicPath: "../",
+            },
+          },
+          {
+            loader: "css-loader",
+            options: {
+              // 如果要使用import scss的用法 ，
+              // 可以在css-loader上添加 options属性 importLoaders
+              // 让import进来的css也能使用到postcss loader 和sass loader
+              importLoaders: 2,
+              modules: { localIdentName: "[local]_[name]_[hash:base64:5]" },
+            },
+          },
+          "postcss-loader",
+          "sass-loader",
+        ],
+        exclude: [path.resolve(__dirname, "../node_modules")],
+      },
+      {
+        test: /\.(sass|scss)/,
+        exclude: /\.module\.(scss|sass)$/,
+        use: [
+          "css-hot-loader",
           {
             loader: MiniCssExtractPlugin.loader,
             options: {
